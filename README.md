@@ -1,3 +1,5 @@
+[![Verify](https://github.com/HarlemSquirrel/youp-rs/actions/workflows/verify.yml/badge.svg)](https://github.com/HarlemSquirrel/youp-rs/actions/workflows/verify.yml)
+
 # youp-rs
 
 Simple HTTP uptime CLI monitor written in Rust.
