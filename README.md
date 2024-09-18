@@ -7,3 +7,4 @@ It's "youp" as in quickly saying, "you up?" to a URL.
 ```sh
 cargo run -- https://github.com
 ```
+![image](https://github.com/user-attachments/assets/83d37cdc-d581-4cb1-b5b2-42af8de24c2f)
