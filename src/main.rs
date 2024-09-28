@@ -1,37 +1,54 @@
 // https://rust-cli.github.io/book/tutorial/cli-args.html
 // https://github.com/colored-rs/colored
 // https://github.com/seanmonstar/reqwest
+// https://async.rs/
 
-use std::{thread, time};
+use std::time;
+use async_std::task;
 
 use chrono;
 use clap::Parser;
+
+use futures::future::join_all;
 
 mod util;
 
 #[derive(Parser)]
 struct Cli {
     url_string: String,
+
+    #[arg(short, long, default_value_t = 1)]
+    concurrency: u8,
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let five_seconds = time::Duration::from_secs(5);
+async fn main() {
+    let throttle: time::Duration = time::Duration::from_secs(5);
     let args = Cli::parse();
 
     println!("URL: {:?}", args.url_string);
 
-    loop {
-        let res_future = get_response_summary(&args.url_string);
-
-        let response_summary: String = res_future.await?;
-        println!("{}", response_summary);
-
-        thread::sleep(five_seconds);
-        // thread::sleep(time::Duration::from_millis(10));
+    let mut loops = vec![];
+    for index in 0..usize::from(args.concurrency) {
+        loops.insert(index, check_loop(&args.url_string, throttle));
     }
+    join_all(loops).await;
+}
 
-    // Ok(())
+async fn check_loop(url_string: &String, throttle: time::Duration) {
+    for _n in 0..1000 {
+        print_response_for(&url_string).await;
+        task::sleep(throttle).await;
+    }
+}
+
+async fn print_response_for(url_string: &String) {
+    let res_future = get_response_summary(&url_string);
+
+    match res_future.await {
+        Ok(response_summary) => println!("{}", response_summary),
+        Err(e) => println!("Yikes! {}", e),
+    }
 }
 
 async fn get_response_summary(url_string: &String) -> Result<String, reqwest::Error> {
