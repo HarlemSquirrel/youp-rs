@@ -7,6 +7,17 @@ Simple HTTP uptime CLI monitor written in Rust.
 It's "youp" as in quickly saying, "you up?" to a URL.
 
 ```sh
+Usage: youp [OPTIONS] <URL_STRING>
+
+Arguments:
+  <URL_STRING>
+
+Options:
+  -c, --concurrency <CONCURRENCY>  [default: 1]
+  -h, --help                       Print help
+```
+
+```sh
 cargo run -- https://github.com
 ```
 ![image](https://github.com/user-attachments/assets/83d37cdc-d581-4cb1-b5b2-42af8de24c2f)
