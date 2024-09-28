@@ -10,10 +10,12 @@ It's "youp" as in quickly saying, "you up?" to a URL.
 Usage: youp [OPTIONS] <URL_STRING>
 
 Arguments:
-  <URL_STRING>
+  <URL_STRING>  URL to make the request to
 
 Options:
-  -c, --concurrency <CONCURRENCY>  [default: 1]
+  -c, --concurrency <CONCURRENCY>  Number of workers to make concurrent requests [default: 1]
+  -d, --delay <DELAY>              Delay in milliseconds between requests in each worker [default: 1000]
+  -i, --iterations <ITERATIONS>    Number of requests to make from each worker [default: 10]
   -h, --help                       Print help
 ```
 
