@@ -22,4 +22,5 @@ Options:
 ```sh
 cargo run -- https://github.com
 ```
-![image](https://github.com/user-attachments/assets/83d37cdc-d581-4cb1-b5b2-42af8de24c2f)
+![image](https://github.com/user-attachments/assets/bd5ed48d-2363-4da9-8086-798a93476a69)
+
