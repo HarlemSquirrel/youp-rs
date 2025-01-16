@@ -34,7 +34,14 @@ struct Cli {
     iterations: u64,
 }
 
-type SharableStats = Arc<Mutex<HashMap<StatusCode, u16>>>;
+#[derive(Copy, Clone)]
+struct StatusCodeStats {
+    num_requests: u16,
+    avg_duration_ms: i64,
+    max_duration_ms: i64,
+}
+
+type SharableStats = Arc<Mutex<HashMap<StatusCode, StatusCodeStats>>>;
 
 #[tokio::main]
 async fn main() {
@@ -62,10 +69,13 @@ async fn main() {
     println!("\nResults by status code:");
     let stats = sharable_stats.lock().unwrap();
     let mut total_count = 0;
-    for (status_code, count) in stats.clone().into_iter() {
+    for (status_code, status_code_stats) in stats.clone().into_iter() {
+        let count = status_code_stats.num_requests;
         total_count = total_count + count;
         let colorized_status = util::colorize_status(status_code);
-        println!("{colorized_status}: {count}");
+        let avg_duration_ms = status_code_stats.avg_duration_ms;
+        let max_duration_ms = status_code_stats.max_duration_ms;
+        println!("{colorized_status}: {count} (avg {avg_duration_ms}ms, max {max_duration_ms}ms)");
     }
     println!("Total: {}", total_count);
 }
@@ -103,8 +113,21 @@ async fn get_response_summary(url_string: &String, stats: SharableStats) -> Resu
     let formatted_timestamp = format!("{}", now.format("%Y-%m-%d %H:%M:%S"));
 
     let mut stats = stats.lock().unwrap();
-    let existing_count = stats.get(&status).copied().unwrap_or(0);
-    stats.insert(status, existing_count + 1);
+    let default_status_code_stats = StatusCodeStats {
+        num_requests: 0,
+        avg_duration_ms: 0,
+        max_duration_ms: 0,
+    };
+    // let existing_count = stats.get(&status).copied().unwrap_or(0);
+    let mut status_code_stats = stats.get(&status).copied().unwrap_or(default_status_code_stats);
+    status_code_stats.avg_duration_ms =
+        (duration.num_milliseconds() + (status_code_stats.avg_duration_ms * i64::from(status_code_stats.num_requests))) / (i64::from(status_code_stats.num_requests + 1));
+    status_code_stats.num_requests = status_code_stats.num_requests + 1;
+    if duration.num_milliseconds() > status_code_stats.max_duration_ms {
+        status_code_stats.max_duration_ms = duration.num_milliseconds();
+    }
+
+    stats.insert(status, status_code_stats);
 
     let colored_status: colored::ColoredString = util::colorize_status(status);
     let response_summary: String = format!(
