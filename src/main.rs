@@ -8,13 +8,18 @@ use std::sync::{Arc, Mutex};
 use std::time;
 
 use async_std::task::{self};
-use chrono;
+// use chrono;
 use clap::Parser;
 use futures::future::join_all;
 
-use reqwest::StatusCode;
+// use reqwest::StatusCode;
 
+mod req;
+mod stats;
 mod util;
+
+use crate::stats::SharableStats;
+use crate::req::get_response_summary;
 
 #[derive(Parser)]
 struct Cli {
@@ -33,15 +38,6 @@ struct Cli {
     #[arg(short, long, default_value_t = 10)]
     iterations: u64,
 }
-
-#[derive(Copy, Clone)]
-struct StatusCodeStats {
-    num_requests: u16,
-    avg_duration_ms: i64,
-    max_duration_ms: i64,
-}
-
-type SharableStats = Arc<Mutex<HashMap<StatusCode, StatusCodeStats>>>;
 
 #[tokio::main]
 async fn main() {
@@ -100,42 +96,4 @@ async fn print_response_for(url_string: &String, stats: SharableStats) {
         Ok(response_summary) => println!("{}", response_summary),
         Err(e) => println!("Yikes! {}", e),
     }
-}
-
-async fn get_response_summary(url_string: &String, stats: SharableStats) -> Result<String, reqwest::Error> {
-    let start: chrono::DateTime<chrono::Local> = chrono::offset::Local::now();
-    let res_future = reqwest::get(url_string);
-
-    let response: reqwest::Response = res_future.await?;
-    let status: reqwest::StatusCode = response.status();
-    let now: chrono::DateTime<chrono::Local> = chrono::offset::Local::now();
-    let duration: chrono::TimeDelta = now - start;
-    let formatted_timestamp = format!("{}", now.format("%Y-%m-%d %H:%M:%S"));
-
-    let mut stats = stats.lock().unwrap();
-    let default_status_code_stats = StatusCodeStats {
-        num_requests: 0,
-        avg_duration_ms: 0,
-        max_duration_ms: 0,
-    };
-    // let existing_count = stats.get(&status).copied().unwrap_or(0);
-    let mut status_code_stats = stats.get(&status).copied().unwrap_or(default_status_code_stats);
-    status_code_stats.avg_duration_ms =
-        (duration.num_milliseconds() + (status_code_stats.avg_duration_ms * i64::from(status_code_stats.num_requests))) / (i64::from(status_code_stats.num_requests + 1));
-    status_code_stats.num_requests = status_code_stats.num_requests + 1;
-    if duration.num_milliseconds() > status_code_stats.max_duration_ms {
-        status_code_stats.max_duration_ms = duration.num_milliseconds();
-    }
-
-    stats.insert(status, status_code_stats);
-
-    let colored_status: colored::ColoredString = util::colorize_status(status);
-    let response_summary: String = format!(
-        "{} Responded {} in {}ms",
-        formatted_timestamp,
-        colored_status,
-        duration.num_milliseconds()
-    );
-
-    Ok(response_summary)
 }
