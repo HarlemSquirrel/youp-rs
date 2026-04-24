@@ -77,11 +77,17 @@ async fn main() {
 }
 
 async fn check_loop(url_string: &String, num_iterations:u64, stats: SharableStats, throttle: time::Duration) {
+    // Early validation of URL
+    if let Err(e) = url::Url::parse(url_string) {
+        println!("Please provide a valid URL. Error: {}", e);
+        return;
+    }
+    
     for i in 0..num_iterations {
         let stats = stats.clone();
         let url_string = url_string.clone();
         let _result = tokio::spawn(async move {
-            print_response_for(&url_string, stats).await;
+            let _ = print_response_for(&url_string, stats).await;
         }).await;
         if i < (num_iterations - 1) {
           task::sleep(throttle).await;
@@ -89,11 +95,27 @@ async fn check_loop(url_string: &String, num_iterations:u64, stats: SharableStat
     }
 }
 
-async fn print_response_for(url_string: &String, stats: SharableStats) {
+async fn print_response_for(url_string: &String, stats: SharableStats) -> Result<(), String> {
+    // Validate URL early to avoid running all iterations for invalid URLs
+    let url_result = url::Url::parse(url_string);
+    if let Err(e) = url_result {
+        return Err(format!("Please provide a valid URL. Error: {}", e));
+    }
+
     let res_future = get_response_summary(&url_string, stats);
 
     match res_future.await {
         Ok(response_summary) => println!("{}", response_summary),
-        Err(e) => println!("Yikes! {}", e),
+        Err(e) => {
+            // Check if this is a URL parsing error and provide a more helpful message
+            let error_msg = e.to_string();
+            if error_msg.contains("builder error") || error_msg.contains("invalid url") {
+                println!("Please provide a valid URL");
+            } else {
+                println!("Yikes! {}", e);
+            }
+        },
     }
+    
+    Ok(())
 }
